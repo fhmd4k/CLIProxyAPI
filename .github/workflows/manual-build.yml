@@ -1,0 +1,54 @@
+name: manual-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v6.99.1-custom)'
+        required: true
+        default: 'v6.99.1-custom'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Refresh models catalog
+        run: |
+          git fetch --depth 1 https://github.com/router-for-me/models.git main
+          git show FETCH_HEAD:models.json > internal/registry/models/models.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Generate Build Metadata
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          echo "COMMIT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --skip=validate --skip=publish --snapshot
+        env:
+          VERSION: ${{ env.VERSION }}
+          COMMIT: ${{ env.COMMIT }}
+          BUILD_DATE: ${{ env.BUILD_DATE }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-proxy-api-binaries
+          path: dist/*.tar.gz
+          retention-days: 30
+      - name: Upload windows zips
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-proxy-api-windows
+          path: dist/*.zip
+          retention-days: 30
