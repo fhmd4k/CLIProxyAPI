@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Default antigravity base URLs. Used when apiUrl.json is missing or a field is empty.
@@ -50,16 +52,21 @@ func loadAntigravityBaseURLs() {
 		SandboxDaily: DefaultAntigravitySandboxBaseURLDaily,
 	}
 
-	for _, dir := range antigravityBaseURLCandidateDirs() {
+	candidates := antigravityBaseURLCandidateDirs()
+	loadedFrom := ""
+
+	for _, dir := range candidates {
 		if dir == "" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, AntigravityBaseURLConfigFileName))
+		path := filepath.Join(dir, AntigravityBaseURLConfigFileName)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
 		}
 		var fileCfg antigravityBaseURLConfig
 		if err := json.Unmarshal(data, &fileCfg); err != nil {
+			log.Warnf("[antigravity] apiUrl.json found at %s but JSON parse failed: %v, ignoring", path, err)
 			continue
 		}
 		if v := strings.TrimSpace(fileCfg.Prod); v != "" {
@@ -71,10 +78,19 @@ func loadAntigravityBaseURLs() {
 		if v := strings.TrimSpace(fileCfg.SandboxDaily); v != "" {
 			cfg.SandboxDaily = v
 		}
+		loadedFrom = path
 		break
 	}
 
 	antigravityURLs = []string{cfg.Prod, cfg.Daily, cfg.SandboxDaily}
+
+	if loadedFrom != "" {
+		log.Infof("[antigravity] base URLs loaded from %s: prod=%s daily=%s sandbox_daily=%s",
+			loadedFrom, cfg.Prod, cfg.Daily, cfg.SandboxDaily)
+	} else {
+		log.Infof("[antigravity] apiUrl.json not found in %v, using built-in defaults: prod=%s daily=%s sandbox_daily=%s",
+			candidates, cfg.Prod, cfg.Daily, cfg.SandboxDaily)
+	}
 }
 
 func antigravityBaseURLCandidateDirs() []string {
