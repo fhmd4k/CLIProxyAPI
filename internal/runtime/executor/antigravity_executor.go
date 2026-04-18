@@ -41,9 +41,6 @@ import (
 )
 
 const (
-	antigravityBaseURLDaily                = "https://daily-cloudcode-pa.googleapis.com"
-	antigravitySandboxBaseURLDaily         = "https://daily-cloudcode-pa.sandbox.googleapis.com"
-	antigravityBaseURLProd                 = "https://cloudcode-pa.googleapis.com"
 	antigravityCountTokensPath             = "/v1internal:countTokens"
 	antigravityStreamPath                  = "/v1internal:streamGenerateContent"
 	antigravityGeneratePath                = "/v1internal:generateContent"
@@ -2134,7 +2131,7 @@ func buildBaseURL(auth *cliproxyauth.Auth) string {
 	if baseURLs := antigravityBaseURLFallbackOrder(auth); len(baseURLs) > 0 {
 		return baseURLs[0]
 	}
-	return antigravityBaseURLDaily
+	return misc.DefaultAntigravityBaseURLDaily
 }
 
 func resolveHost(base string) string {
@@ -2320,11 +2317,7 @@ var antigravityBaseURLFallbackOrder = func(auth *cliproxyauth.Auth) []string {
 	if base := resolveCustomAntigravityBaseURL(auth); base != "" {
 		return []string{base}
 	}
-	return []string{
-		antigravityBaseURLProd,
-		antigravityBaseURLDaily,
-		antigravitySandboxBaseURLDaily,
-	}
+	return misc.AntigravityBaseURLs()
 }
 
 func resolveCustomAntigravityBaseURL(auth *cliproxyauth.Auth) string {
